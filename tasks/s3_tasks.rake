@@ -9,17 +9,17 @@ namespace :s3 do
         :bucket => "static.#{Utils.project_name}",
         :force => false,
         :access => :public_read
-        }
-        options[:force] = true if ENV['FORCE'] == 'true'
-        options[:bucket] = ENV['BUCKET'] if ENV['BUCKET']
-        options[:access] = ENV['ACCESS'].to_sym if ENV['ACCESS']
-        bucket = Static.find_or_create_bucket(options[:bucket], options)
-        if ENV['FORCE'] == 'true'
-          Utils.msg "cleaning bucket '#{bucket.name}'."
-          bucket.delete_all 
-        end
-        Utils.msg "uploading public/static files from '#{RAILS_ROOT}/public/' to bucket '#{bucket.name}'."        
-        Static.upload("#{RAILS_ROOT}/public/", bucket, options)
+      }
+      options[:force] = true if ENV['FORCE'] == 'true'
+      options[:bucket] = ENV['BUCKET'] if ENV['BUCKET']
+      options[:access] = ENV['ACCESS'].to_sym if ENV['ACCESS']
+      bucket = Static.find_or_create_bucket(options[:bucket], options)
+      if ENV['FORCE'] == 'true'
+        Utils.msg "cleaning bucket '#{bucket.name}'."
+        bucket.delete_all 
+      end
+      Utils.msg "uploading public/static files from '#{RAILS_ROOT}/public/' to bucket '#{bucket.name}'."        
+      Static.upload("#{RAILS_ROOT}/public/", bucket, options)
     end
     
     # task :create_bucket do
@@ -164,6 +164,33 @@ namespace :s3 do
       Utils.msg "  (runtime: #{Time.now - start} secs)"
     end #end scm task
 
+    # Added restore task written by Compulsivo: 
+    # http://blog.compulsivoco.com/2008/01/19/s3-rake-tasks/
+    desc "repopulate the db from the latest S3 backup, or optionally specify a VERSION=this_archine.tar.gz"
+    task :restore do
+      # Fetch the backup from S3
+      file_name = retrieve_file 'db', ENV['VERSION']
+	
+      # Decompress backup
+      msg "decompressing backup"
+      result = system("tar -zxvf #{file_name}" )
+      raise("backup decompression failed. msg: #{$?}" ) unless result
+	
+      # Extract database information from database.yml
+      msg "retrieving db info"
+      database, user, password = retrieve_db_info
+	
+      msg "restoring db"
+      cmd = "mysql -u#{user} "
+      puts cmd + "... [password filtered]"
+      cmd += " -p'#{password}' " unless password.nil?
+      cmd += " #{database} < ./tmp/#{file_name.gsub('.tar.gz', '')}"
+      result = system(cmd)
+      raise("mysql restore failed.  msg: #{$?}" ) unless result
+    end
+
+
+
   end # end backup namespace
 
   desc "retrieve an object from any bucket.  KEY=object_key. Optional: BUCKET=bucket, otherwise defaults to current backup bucket"
@@ -208,13 +235,13 @@ namespace :s3 do
       buckets = []
       Service.buckets.map do |bucket|
         entries = Utils.retrieve_all_entries(bucket)
-         ti += entries.size
-         ts += entries.sum{|e| e[:size]}
+        ti += entries.size
+        ts += entries.sum{|e| e[:size]}
         buckets << {
-                    :num_items => entries.size.to_s, 
-                    :size => Utils.print_bucket_size(entries).to_s, 
-                    :time => entries.last.nil? ? "created on: #{bucket.creation_date.to_s(:short)}" : "last updated on: #{bucket.entries.last.last_modified.to_s(:long)}",
-                    :name => bucket.name }
+          :num_items => entries.size.to_s, 
+          :size => Utils.print_bucket_size(entries).to_s, 
+          :time => entries.last.nil? ? "created on: #{bucket.creation_date.to_s(:short)}" : "last updated on: #{bucket.entries.last.last_modified.to_s(:long)}",
+          :name => bucket.name }
       
       end
       name_width = buckets.collect{|b| b[:name]}.collect{|n| n.length}.max
@@ -235,78 +262,78 @@ namespace :s3 do
     end
   end
 
-    desc "Remove all but the last 200 most recent backup archives or optionally specify KEEP=50 to keep the last 50.  You can specity BUCKET=bucket_name"
-    task :cleanup  do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
-      keep_num = ENV['KEEP'] ? ENV['KEEP'].to_i : 200
-      bucket = Bucket.find(ENV['BUCKET']) rescue Backup.backup_bucket
-      puts "keeping the last #{keep_num}"
-      Backup.cleanup(bucket, keep_num)
-    end
+  desc "Remove all but the last 200 most recent backup archives or optionally specify KEEP=50 to keep the last 50.  You can specity BUCKET=bucket_name"
+  task :cleanup  do
+    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    keep_num = ENV['KEEP'] ? ENV['KEEP'].to_i : 200
+    bucket = Bucket.find(ENV['BUCKET']) rescue Backup.backup_bucket
+    puts "keeping the last #{keep_num}"
+    Backup.cleanup(bucket, keep_num)
+  end
     
-    desc 'Installs required config/s3.yml config file'
-    task :install_config do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
-      h = {
-        :aws_access_key => '<Your Access Key Here />',
-        :aws_secret_access_key => '<Your Top-Secret access key here />',
-        :options => {
-          :use_ssl => true,
-          :persistent => true
-          }
+  desc 'Installs required config/s3.yml config file'
+  task :install_config do
+    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    h = {
+      :aws_access_key => '<Your Access Key Here />',
+      :aws_secret_access_key => '<Your Top-Secret access key here />',
+      :options => {
+        :use_ssl => true,
+        :persistent => true
       }
-      raise "#{RAILS_ROOT}/config/s3.yml already exists!" if File.exists?("#{RAILS_ROOT}/config/s3.yml")
-      # File.open("#{RAILS_ROOT}/config/s3.yml", 'w') { |file| file.write h.to_yaml }
-      File.copy "#{File.dirname(__FILE__) }/../templates/s3.yml", "#{RAILS_ROOT}/config/s3.yml", true
-      Utils.msg "Installed #{RAILS_ROOT}/config/s3.yml.  You need to modify it to connect to Amazon's S3"
-    end
+    }
+    raise "#{RAILS_ROOT}/config/s3.yml already exists!" if File.exists?("#{RAILS_ROOT}/config/s3.yml")
+    # File.open("#{RAILS_ROOT}/config/s3.yml", 'w') { |file| file.write h.to_yaml }
+    File.copy "#{File.dirname(__FILE__) }/../templates/s3.yml", "#{RAILS_ROOT}/config/s3.yml", true
+    Utils.msg "Installed #{RAILS_ROOT}/config/s3.yml.  You need to modify it to connect to Amazon's S3"
+  end
 
-    desc "delete a particular bucket or object in a specific bucket.\n    Require BUCKET=bucket\n    KEY=key is optional.\n    FORCE=true to delete a bucket that is not empty.\n"
-    task :delete do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
-      raise "Specify a BUCKET=bucket that you want deleted" unless ENV['BUCKET']
-      if ENV['KEY']
-        raise "Specify a KEY=key AND BUCKET=bucket of the object that you want to delete within the BUCKET" unless ENV['KEY'] && ENV['BUCKET']
-        S3Object.delete ENV['KEY'], ENV['BUCKET']              
-      else
-        options = {}
-        options.merge!(:force => true) if ENV['FORCE'] == 'true'
-        # Bucket.delete doesn't work if you have force delete it... it will then say the bucket cannot be found!  Very odd...
-        # not spending time looking at it...right now.
-        b = Bucket.find(ENV['BUCKET'])
-        size = b.size
-        b.delete_all if ENV['FORCE'] == 'true'
-        b.delete
-        str = "deleting bucket #{ENV['BUCKET']}"
-        str += ", which contained #{size} objects"  if size > 0
-        Utils.msg str
-      end      
-    end
+  desc "delete a particular bucket or object in a specific bucket.\n    Require BUCKET=bucket\n    KEY=key is optional.\n    FORCE=true to delete a bucket that is not empty.\n"
+  task :delete do
+    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    raise "Specify a BUCKET=bucket that you want deleted" unless ENV['BUCKET']
+    if ENV['KEY']
+      raise "Specify a KEY=key AND BUCKET=bucket of the object that you want to delete within the BUCKET" unless ENV['KEY'] && ENV['BUCKET']
+      S3Object.delete ENV['KEY'], ENV['BUCKET']              
+    else
+      options = {}
+      options.merge!(:force => true) if ENV['FORCE'] == 'true'
+      # Bucket.delete doesn't work if you have force delete it... it will then say the bucket cannot be found!  Very odd...
+      # not spending time looking at it...right now.
+      b = Bucket.find(ENV['BUCKET'])
+      size = b.size
+      b.delete_all if ENV['FORCE'] == 'true'
+      b.delete
+      str = "deleting bucket #{ENV['BUCKET']}"
+      str += ", which contained #{size} objects"  if size > 0
+      Utils.msg str
+    end      
+  end
     
-    desc <<-DSC 
+  desc <<-DSC 
    create a bucket; specify BUCKET=bucket.
      Optionally, specify the access level ACCESS= 'private' (default choice),
      'public_read', 'public_read_write', 'authenticated_read' (see AWS::S3::ACL)
-   DSC
-    task :create_bucket do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
-      raise "Specify the BUCKET=bucket that you want to create" unless ENV['BUCKET']
-      access = ENV['ACCESS'] ? ENV['ACCESS'].to_sym : :private
-      Bucket.create(ENV['BUCKET'], :access => access)
-    end    
+  DSC
+  task :create_bucket do
+    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    raise "Specify the BUCKET=bucket that you want to create" unless ENV['BUCKET']
+    access = ENV['ACCESS'] ? ENV['ACCESS'].to_sym : :private
+    Bucket.create(ENV['BUCKET'], :access => access)
+  end    
 end
 
   
-  private
-  def find_scm_dir(path)
-    #double check if the path is a real physical path vs a svn path
-    final_path = path
-    tmp_path = final_path
-    len = tmp_path.split('/').size
-    while !File.exists?(tmp_path) && len > 0 do
-      len -= 1
-      tmp_path = final_path.split('/')[0..len].join('/')
-    end
-    final_path = tmp_path if len > 1
-    final_path
+private
+def find_scm_dir(path)
+  #double check if the path is a real physical path vs a svn path
+  final_path = path
+  tmp_path = final_path
+  len = tmp_path.split('/').size
+  while !File.exists?(tmp_path) && len > 0 do
+    len -= 1
+    tmp_path = final_path.split('/')[0..len].join('/')
   end
+  final_path = tmp_path if len > 1
+  final_path
+end

@@ -3,6 +3,7 @@ module AWS
     module Rake
       class Utils
         class << self
+	  include ActionView::Helpers::NumberHelper
           
           def print_bucket(bucket)
             entries = retrieve_all_entries(bucket)
@@ -27,11 +28,12 @@ module AWS
           end
           
           def print_size(entry)
-            print_formatted_size(entry.size)
+	    number_to_human_size(entry.size)
           end
           
           def print_bucket_size(entries)
-            print_formatted_size(entries.sum{|e| e[:size]})
+	    include ActionView::Helpers::NumberHelper
+            number_to_human_size(entries.sum{|e| e[:size]})
           end
           
           def retrieve_all_entries(bucket)
@@ -67,19 +69,6 @@ module AWS
             #UPDATE shifting to use a combination of user and env.... 
             "#{ENV['USER']}_#{ENV['RAILS_ENV']}"
           end
-          
-          def print_formatted_size(bytes)
-            size = bytes * 1.0/1.megabyte
-            if size < 1
-              "#{(bytes * 1.0/1.kilobyte).round_to(1)} KB"
-            elsif size < 1000
-              "#{size.round_to(1)} MB"
-            else
-              "#{(bytes * 1.0/1.gigabyte).round_to(2)} GB"
-            end
-          end
-          
-          
         end
       end
     end

@@ -9,22 +9,22 @@ module AWS
           def init
             begin
               file =
-              @@s3_configs ||= YAML::load(ERB.new(IO.read("#{RAILS_ROOT}/config/s3.yml")).result)
+              @@s3_configs ||= YAML::load(ERB.new(IO.read("#{RAILS_ROOT}/config/amazon_s3.yml")).result)[RAILS_ENV]
             rescue 
-              return Utils.msg "#{RAILS_ROOT}/config/s3.yml not found..." unless @@s3_configs
+              return Utils.msg "#{RAILS_ROOT}/config/amazon_s3.yml not found..." unless @@s3_configs
             end
 
             begin
               AWS::S3::Base.establish_connection!(
-                :access_key_id     => @@s3_configs['aws_access_key'], 
-                :secret_access_key => @@s3_configs['aws_secret_access_key'],
-                :use_ssl => @@s3_configs['options']['use_ssl'] || true,
-                :persistent => @@s3_configs['options']['persistent'] || true
+                :access_key_id     => @@s3_configs['access_key_id'], 
+                :secret_access_key => @@s3_configs['secret_access_key'],
+                :use_ssl => @@s3_configs['use_ssl'] || true,
+                :persistent => @@s3_configs['persistent'] || true
               )
               #test to see if it exists
               AWS::S3::Base.connected?
             rescue Exception => e 
-              Utils.msg "The connection to AWS::S3 failed.  Make sure '#{RAILS_ROOT}/config/s3.yml' is correctly setup."
+              Utils.msg "The connection to AWS::S3 failed.  Make sure '#{RAILS_ROOT}/config/amazon_s3.yml' is correctly setup."
               raise e              
             end
           end

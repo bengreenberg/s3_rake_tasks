@@ -9,6 +9,12 @@ License::   GNU
 
 Feedback appreciated: adam at [nospam] 6bar8 dt com
 
+Modified by Ben Greenberg (ben at ben<dontspamme>greenberg dot net) December 2008:
+  * Utilize the S3 configuration file format used by attachment_fu to keep things nice and DRY.
+  * Remove relative paths from require statements so rake file can be placed anywhere in app path.
+
+  This file has been updated accordingly.
+
 == Synopsis
 
  from the CommandLine within your RubyOnRails application folder
@@ -34,12 +40,7 @@ Feedback appreciated: adam at [nospam] 6bar8 dt com
  There are a few prerequisites to get this up and running:
    * please download the Amazon S3 ruby library and place it in your ./lib/ directory
      http://developer.amazonwebservices.com/connect/entry.jspa?externalID=135&categoryID=47
-   * You will need a 's3.yml' file in ./config/.  Sure, you can hard-code the information in this rake task,
-     but I like the idea of keeping all your configuration information in one place.  The File will need to look like:
-       aws_access_key: '<YOUR ACCESS KEY HERE>'
-       aws_secret_access_key: '<YOUR _SECRET_ ACCESS KEY HERE>'
-       options:
-           use_ssl: true #set it to true or false
+   * You will need a 'amazon_s3.yml' file in ./config/.  The file is the same format used by attachment_fu, so if you are using that things will work without any additional configuration.  Note that the bucket_name option is not used by these tasks; bucket name is generated automatically.  See the file in the templates directory for an example with additional options.
 
  Once these two requirements are met, you can easily integrate these rake tasks into capistrano tasks or into cron.
    * For cron, put this into a file like <your.app.name>.backup.cron.  You can drop this file into /etc/cron.daily,

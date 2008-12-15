@@ -4,7 +4,7 @@ namespace :s3 do
     desc "Upload your public directory to a bucket in S3.\n    BUCKET=bucket.\n    FORCE=true to blow away contents of bucket"
     task :upload do      
       #put this require here because we don't want it to always run... see the rake.rb file for details...
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       options = {
         :bucket => "static.#{Utils.project_name}",
         :force => false,
@@ -40,7 +40,7 @@ namespace :s3 do
   namespace :backup do
     desc "Backup a log directory.  REQUIRED: DIR=/log/dir BUCKET=s3_bucket OPTIONAL (show defaults): KEEP=10 REMOVE=true"
     task :logs do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       dir = ENV['DIR']
       raise Exception, "The directory '#{dir}' does not exist" unless File.exists?(dir)
 
@@ -71,7 +71,7 @@ namespace :s3 do
     
     desc "Backup the code to S3"
     task :code  do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       start = Time.now
       # use -L so we follow the symlinks and get the interesting stuff like the mugshots, client code, etc.
       # this will make the checkins a LOT larger
@@ -86,7 +86,7 @@ namespace :s3 do
 
     desc "Backup the database to S3"
     task :db  do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       start = Time.now
       database, user, password, host = Backup.retrieve_db_info
       skip_tables = %w{sessions}
@@ -114,7 +114,7 @@ namespace :s3 do
     
     desc "Backup the current scm repository to S3.\n    To backup a different repository, enter the full url SVN='svn+ssh://server.net/some/repo"
     task :scm do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       start = Time.now
       svn_info = {}
       IO.popen("svn info") do |f|
@@ -195,7 +195,7 @@ namespace :s3 do
 
   desc "retrieve an object from any bucket.  KEY=object_key. Optional: BUCKET=bucket, otherwise defaults to current backup bucket"
   task :retrieve do
-    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    require 'aws/s3/rake.rb'
     raise "Specify a KEY=key object that you want to retrieve.  Optional: BUCKET=bucket, otherwise defaults to current backup bucket" unless ENV['KEY']
     Backup.retrieve_object(ENV['KEY'], ENV['BUCKET'])
   end
@@ -224,13 +224,13 @@ namespace :s3 do
   namespace :list do
     desc "list all your backup archives"
     task :backups  do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       Utils.print_bucket(Backup.backup_bucket)
     end
 
     desc "list all your S3 buckets"
     task :buckets do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       ti, ts = 0, 0
       buckets = []
       Service.buckets.map do |bucket|
@@ -256,7 +256,7 @@ namespace :s3 do
     
     desc "list the contents of a particular bucket by specifying BUCKET=backup"
     task :bucket do
-      require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+      require 'aws/s3/rake.rb'
       raise "Specify a BUCKET=bucket that you want to list" unless ENV['BUCKET']
       Utils.print_bucket(Bucket.find(ENV['BUCKET'], Backup.bucket_options))
     end
@@ -264,7 +264,7 @@ namespace :s3 do
 
   desc "Remove all but the last 200 most recent backup archives or optionally specify KEEP=50 to keep the last 50.  You can specity BUCKET=bucket_name"
   task :cleanup  do
-    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    require 'aws/s3/rake.rb'
     keep_num = ENV['KEEP'] ? ENV['KEEP'].to_i : 200
     bucket = Bucket.find(ENV['BUCKET']) rescue Backup.backup_bucket
     puts "keeping the last #{keep_num}"
@@ -273,7 +273,7 @@ namespace :s3 do
     
   desc 'Installs required config/s3.yml config file'
   task :install_config do
-    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    require 'aws/s3/rake.rb'
     h = {
       :aws_access_key => '<Your Access Key Here />',
       :aws_secret_access_key => '<Your Top-Secret access key here />',
@@ -290,7 +290,7 @@ namespace :s3 do
 
   desc "delete a particular bucket or object in a specific bucket.\n    Require BUCKET=bucket\n    KEY=key is optional.\n    FORCE=true to delete a bucket that is not empty.\n"
   task :delete do
-    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    require 'aws/s3/rake.rb'
     raise "Specify a BUCKET=bucket that you want deleted" unless ENV['BUCKET']
     if ENV['KEY']
       raise "Specify a KEY=key AND BUCKET=bucket of the object that you want to delete within the BUCKET" unless ENV['KEY'] && ENV['BUCKET']
@@ -316,7 +316,7 @@ namespace :s3 do
      'public_read', 'public_read_write', 'authenticated_read' (see AWS::S3::ACL)
   DSC
   task :create_bucket do
-    require File.join(File.dirname(__FILE__), "../lib/aws/s3/rake.rb")
+    require 'aws/s3/rake.rb'
     raise "Specify the BUCKET=bucket that you want to create" unless ENV['BUCKET']
     access = ENV['ACCESS'] ? ENV['ACCESS'].to_sym : :private
     Bucket.create(ENV['BUCKET'], :access => access)

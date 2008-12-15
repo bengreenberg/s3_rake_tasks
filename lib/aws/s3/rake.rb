@@ -21,7 +21,6 @@ require File.dirname(__FILE__) + '/rake/base'
 require File.dirname(__FILE__) + '/rake/backup'
 require File.dirname(__FILE__) + '/rake/static'
 require File.dirname(__FILE__) + '/rake/utils'
-require File.dirname(__FILE__) + '/../../float_ext'
 include AWS::S3
 include AWS::S3::Rake
 

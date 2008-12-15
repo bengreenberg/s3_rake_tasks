@@ -38,9 +38,10 @@ Modified by Ben Greenberg (ben at ben<dontspamme>greenberg dot net) December 200
 == Description
 
  There are a few prerequisites to get this up and running:
-   * please download the Amazon S3 ruby library and place it in your ./lib/ directory
-     http://developer.amazonwebservices.com/connect/entry.jspa?externalID=135&categoryID=47
+   * You need the aws-s3 gem installed: sudo gem install aws-s3.
    * You will need a 'amazon_s3.yml' file in ./config/.  The file is the same format used by attachment_fu, so if you are using that things will work without any additional configuration.  Note that the bucket_name option is not used by these tasks; bucket name is generated automatically.  See the file in the templates directory for an example with additional options.
+   * Copy the aws/s3 directory to your lib directory.
+   * Place the rake file tasks/s3_tasks.rake file in your lib/tasks directory.
 
  Once these two requirements are met, you can easily integrate these rake tasks into capistrano tasks or into cron.
    * For cron, put this into a file like <your.app.name>.backup.cron.  You can drop this file into /etc/cron.daily,
